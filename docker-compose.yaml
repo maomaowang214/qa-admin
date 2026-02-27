@@ -1,0 +1,63 @@
+# QA Admin 一键编排：后端 + MySQL + Redis
+# 使用方式：在项目根目录执行 docker-compose up -d
+
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: qa-admin-backend:latest
+    container_name: qa-admin-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - qa-admin-net
+
+  mysql:
+    image: mysql:8.0
+    container_name: qa-admin-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: qa_admin
+    ports:
+      - "13307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - qa-admin-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: qa-admin-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - qa-admin-net
+
+volumes:
+  mysql_data:
+
+networks:
+  qa-admin-net:
+    driver: bridge
